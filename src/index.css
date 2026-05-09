@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-background: hsl(222, 47%, 7%);
+  --color-foreground: hsl(213, 31%, 91%);
+  --color-card: hsl(222, 47%, 10%);
+  --color-card-foreground: hsl(213, 31%, 91%);
+  --color-popover: hsl(222, 47%, 10%);
+  --color-popover-foreground: hsl(213, 31%, 91%);
+  --color-primary: hsl(142, 71%, 45%);
+  --color-primary-foreground: hsl(222, 47%, 7%);
+  --color-secondary: hsl(222, 47%, 15%);
+  --color-secondary-foreground: hsl(213, 31%, 91%);
+  --color-muted: hsl(222, 47%, 14%);
+  --color-muted-foreground: hsl(215, 20%, 55%);
+  --color-accent: hsl(217, 91%, 60%);
+  --color-accent-foreground: hsl(213, 31%, 91%);
+  --color-destructive: hsl(0, 84%, 60%);
+  --color-destructive-foreground: hsl(213, 31%, 91%);
+  --color-border: hsl(222, 47%, 18%);
+  --color-input: hsl(222, 47%, 18%);
+  --color-ring: hsl(142, 71%, 45%);
+  --radius: 0.625rem;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+  }
+  #root {
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 2px;
+  }
+  .glass {
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .glow-green {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
+  }
+  .glow-blue {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
+  }
+  .gradient-green {
+    background: linear-gradient(135deg, rgba(34,197,94,0.08) 0%, rgba(16,163,74,0.03) 100%);
+  }
+  .gradient-blue {
+    background: linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(37,99,235,0.03) 100%);
+  }
+}
