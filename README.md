@@ -2,7 +2,7 @@
 
 A full-featured personal health and fitness web application built with a modern React stack. Protocol+ covers nutrition planning, evidence-based supplementation, workout programming, grocery management, and progress tracking — all running entirely in the browser with no backend and no data collection.
 
-**Live demo:** [github.com/CursedFork/ProtocolPlus](https://github.com/CursedFork/ProtocolPlus)
+**Live demo:** [Here](https://protocol-plus-by-cursedfork.vercel.app)
 
 ---
 
