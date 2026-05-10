@@ -14,6 +14,7 @@ export type SupplementCategory =
   | 'antioxidants'
   | 'multi-nutrient'
   | 'adaptogen'
+  | 'prescription'
 
 export interface Citation {
   title: string
@@ -79,4 +80,7 @@ export interface Supplement {
   tier?: 1 | 2 | 3
   tierReason?: string
   warningLevel?: 'none' | 'caution' | 'bloodwork-required'
+  isPrescriptionDrug?: boolean
+  prescriptionWarning?: string
+  importantDosageWarning?: string
 }

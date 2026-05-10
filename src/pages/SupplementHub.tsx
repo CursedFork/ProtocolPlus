@@ -288,6 +288,17 @@ function SupplementCard({
           transition={{ duration: 0.2 }}
           className="mt-4 pt-4 border-t border-border"
         >
+          {/* Prescription drug banner */}
+          {s.isPrescriptionDrug && (
+            <div className="flex gap-2.5 rounded-lg p-3 border border-red-500/40 bg-red-500/10 mb-4">
+              <Shield className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-red-400 mb-0.5">Prescription Medication — Not a Supplement</p>
+                <p className="text-xs text-red-300/80 leading-relaxed">{s.prescriptionWarning}</p>
+              </div>
+            </div>
+          )}
+
           <Accordion>
 
             {/* Evidence summary */}
@@ -342,6 +353,15 @@ function SupplementCard({
               </span>
             }>
               <div className="space-y-3">
+                {s.importantDosageWarning && (
+                  <div className="flex gap-2.5 rounded-lg p-3 border border-orange-500/40 bg-orange-500/10">
+                    <AlertTriangle className="h-3.5 w-3.5 text-orange-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[10px] font-semibold text-orange-400 uppercase tracking-wider mb-0.5">Important Dosage Warning</p>
+                      <p className="text-xs text-orange-300/90 leading-relaxed">{s.importantDosageWarning}</p>
+                    </div>
+                  </div>
+                )}
                 {s.typicalDosageRange && (
                   <div className="bg-muted/40 rounded-lg p-3 border border-border">
                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Typical Dosage Range</p>
