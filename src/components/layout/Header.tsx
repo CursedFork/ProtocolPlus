@@ -1,4 +1,4 @@
-import { Menu, Zap } from 'lucide-react'
+import { Menu, Moon, Sun, Zap } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
@@ -14,9 +14,11 @@ const pageTitles: Record<string, { title: string; subtitle: string }> = {
 
 interface HeaderProps {
   onMenuClick: () => void
+  theme: 'dark' | 'light'
+  onToggleTheme: () => void
 }
 
-export function Header({ onMenuClick }: HeaderProps) {
+export function Header({ onMenuClick, theme, onToggleTheme }: HeaderProps) {
   const location = useLocation()
   const basePath = '/' + location.pathname.split('/')[1]
   const meta = pageTitles[basePath] ?? pageTitles['/']
@@ -49,11 +51,22 @@ export function Header({ onMenuClick }: HeaderProps) {
           <p className="text-xs text-muted-foreground">{meta.subtitle}</p>
         </div>
 
-        <div className="ml-auto text-right">
-          <p className="text-xs text-muted-foreground hidden sm:block">{today}</p>
-          <div className="flex items-center gap-1.5 justify-end mt-0.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-            <span className="text-xs text-primary font-medium">Active</span>
+        <div className="ml-auto flex items-center gap-3">
+          {/* Theme toggle */}
+          <button
+            onClick={onToggleTheme}
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+
+          <div className="text-right">
+            <p className="text-xs text-muted-foreground hidden sm:block">{today}</p>
+            <div className="flex items-center gap-1.5 justify-end mt-0.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              <span className="text-xs text-primary font-medium">Active</span>
+            </div>
           </div>
         </div>
       </div>

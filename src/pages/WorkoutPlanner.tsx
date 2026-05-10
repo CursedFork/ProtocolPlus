@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Dumbbell, Clock, ChevronDown, ChevronUp, Info, Calendar, Zap } from 'lucide-react'
+import { Dumbbell, Clock, ChevronDown, ChevronUp, Info, Calendar, Zap, FlaskConical, ExternalLink, BookOpen } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/shared/Card'
 import { Badge } from '@/components/shared/Badge'
 import { Accordion, AccordionItem } from '@/components/shared/Accordion'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { workoutPlans } from '@/data/workouts'
 import { buildSchedule, validateDaySelection } from '@/utils/workoutScaling'
+import { supersetTypes, workoutCitations } from '@/data/workoutResearch'
 import type { DayOfWeek, SplitType } from '@/types/workout'
 import { cn } from '@/lib/utils'
 
@@ -265,22 +266,30 @@ export default function WorkoutPlanner() {
         ))}
       </div>
 
-      {/* Progressive overload guide */}
+      {/* Research-backed accordion sections */}
       <Accordion>
-        <AccordionItem title="Progressive Overload — The Core Principle">
+        <AccordionItem
+          title={
+            <div className="flex items-center gap-2">
+              <Dumbbell className="h-4 w-4 text-primary" />
+              <span className="font-medium text-foreground text-sm">Progressive Overload — The Core Principle</span>
+            </div>
+          }
+          badge={<Badge variant="green">NSCA/ACSM</Badge>}
+        >
           <div className="space-y-3 text-sm text-muted-foreground">
             <p>
               Progressive overload — gradually increasing the demands placed on the body over time — is the fundamental
-              mechanism behind strength and muscle development. Without it, adaptation stalls.
+              mechanism behind strength and muscle development. Without it, adaptation stalls. (ACSM Position Stand, 2009)
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {[
                 { method: 'Add weight', detail: 'Increase load by 2.5–5lbs when you hit the top rep range for 2 sessions in a row' },
                 { method: 'Add reps', detail: 'Complete more reps at the same weight before increasing load' },
-                { method: 'Add sets', detail: 'Increase total volume by adding a set periodically' },
-                { method: 'Reduce rest', detail: 'Same work in less time = higher intensity' },
-                { method: 'Improve form', detail: 'Fuller range of motion, slower tempo, better mind-muscle connection' },
-                { method: 'Add frequency', detail: 'Train a muscle group an additional day per week' },
+                { method: 'Add sets', detail: 'Increase total volume by adding a set periodically (10+ weekly sets per muscle = optimal hypertrophy per Schoenfeld et al. 2017)' },
+                { method: 'Reduce rest', detail: 'Same work in less time = higher relative intensity' },
+                { method: 'Improve form / ROM', detail: 'Fuller range of motion under load drives greater stretch-mediated hypertrophy (Maeo et al. 2023)' },
+                { method: 'Add frequency', detail: 'Training a muscle 2–3× per week produces more hypertrophy than once per week when volume is equated (Ralston et al. 2017)' },
               ].map((item) => (
                 <div key={item.method} className="bg-muted/40 rounded-lg p-2.5 border border-border">
                   <p className="font-medium text-foreground text-xs">{item.method}</p>
@@ -290,18 +299,78 @@ export default function WorkoutPlanner() {
             </div>
           </div>
         </AccordionItem>
-        <AccordionItem title="Recovery & Deload Guidelines">
+
+        <AccordionItem
+          title={
+            <div className="flex items-center gap-2">
+              <FlaskConical className="h-4 w-4 text-purple-400" />
+              <span className="font-medium text-foreground text-sm">Superset Training Guide</span>
+            </div>
+          }
+          badge={<Badge variant="purple">Time-Efficient</Badge>}
+        >
+          <div className="space-y-4 text-sm text-muted-foreground">
+            <p>
+              Supersets reduce session time by 30–40% with equivalent or superior hypertrophy outcomes compared to traditional
+              straight sets. There are 4 distinct types, each with different mechanisms and applications.
+              (Weakley et al. 2017)
+            </p>
+            <div className="space-y-3">
+              {supersetTypes.map((st) => (
+                <div key={st.id} className="border border-border rounded-lg p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-semibold text-foreground text-sm">{st.name}</p>
+                    <Badge variant="purple" className="text-[9px] flex-shrink-0">{st.timeReduction}</Badge>
+                  </div>
+                  <p className="text-xs leading-relaxed">{st.description}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div className="bg-muted/30 rounded p-2 border border-border">
+                      <p className="text-[10px] font-semibold text-foreground uppercase tracking-wider mb-1">Mechanism</p>
+                      <p className="text-muted-foreground leading-relaxed">{st.mechanism}</p>
+                    </div>
+                    <div className="bg-muted/30 rounded p-2 border border-border">
+                      <p className="text-[10px] font-semibold text-foreground uppercase tracking-wider mb-1">Best For</p>
+                      <p className="text-muted-foreground">{st.bestFor}</p>
+                    </div>
+                  </div>
+                  <div className="bg-primary/5 border border-primary/20 rounded p-2">
+                    <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-0.5">Example</p>
+                    <p className="text-xs text-muted-foreground">{st.example}</p>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground/70 italic">{st.evidence}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </AccordionItem>
+
+        <AccordionItem
+          title={
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-orange-400" />
+              <span className="font-medium text-foreground text-sm">Recovery & Deload Guidelines</span>
+            </div>
+          }
+        >
           <div className="space-y-2 text-sm text-muted-foreground leading-relaxed">
             <p>Recovery is when adaptation happens — training is the stimulus, rest is the response.</p>
             <ul className="space-y-1.5">
-              <li>• <strong className="text-foreground">Sleep:</strong> 7–9 hours is a non-negotiable for optimal recovery</li>
+              <li>• <strong className="text-foreground">Sleep:</strong> 7–9 hours is a non-negotiable for optimal recovery and hormonal function</li>
               <li>• <strong className="text-foreground">Deload:</strong> Every 4–8 weeks, reduce volume by ~40% for 1 week. Do not skip — it prevents overtraining and often results in PRs afterwards</li>
               <li>• <strong className="text-foreground">Active recovery:</strong> Light walks, yoga, and swimming on rest days support blood flow without adding fatigue</li>
               <li>• <strong className="text-foreground">Soreness:</strong> DOMS (delayed onset muscle soreness) peaks 24–72h post-exercise. Training through mild soreness is fine; severe soreness may warrant extra recovery</li>
             </ul>
           </div>
         </AccordionItem>
-        <AccordionItem title="Beginner Notes — Where to Start">
+
+        <AccordionItem
+          title={
+            <div className="flex items-center gap-2">
+              <Info className="h-4 w-4 text-blue-400" />
+              <span className="font-medium text-foreground text-sm">Beginner Notes — Where to Start</span>
+            </div>
+          }
+        >
           <div className="space-y-2 text-sm text-muted-foreground leading-relaxed">
             <p>If you are new to structured training, the 2–3 day splits are the ideal starting point.</p>
             <ul className="space-y-1.5">
@@ -311,6 +380,42 @@ export default function WorkoutPlanner() {
               <li>• Soreness does not equal effectiveness — effective training improves performance over time, not just creates pain</li>
               <li>• Consider working with a trainer for your first 4–8 weeks to establish form</li>
             </ul>
+          </div>
+        </AccordionItem>
+
+        <AccordionItem
+          title={
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-cyan-400" />
+              <span className="font-medium text-foreground text-sm">Scientific Evidence Base</span>
+            </div>
+          }
+          badge={<Badge variant="blue">{workoutCitations.length} studies</Badge>}
+        >
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <p>
+              The programming principles in this planner are grounded in peer-reviewed sports science literature,
+              primarily from NSCA, ACSM, and published meta-analyses. Full citations are available on the{' '}
+              <a href="/sources" className="text-primary hover:underline">Sources page</a>.
+            </p>
+            <div className="space-y-2">
+              {workoutCitations.map((c, i) => (
+                <div key={i} className="flex gap-2.5 bg-muted/30 rounded-lg p-2.5 border border-border/60 text-xs">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground leading-relaxed">{c.title}</p>
+                    <p className="text-muted-foreground/80 mt-0.5 italic">{c.authors} · {c.journal} ({c.year})</p>
+                    {c.studyDescription && (
+                      <p className="text-[11px] text-blue-300/80 mt-1 leading-relaxed">{c.studyDescription}</p>
+                    )}
+                  </div>
+                  {c.url && (
+                    <a href={c.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 flex-shrink-0 mt-0.5">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </AccordionItem>
       </Accordion>

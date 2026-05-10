@@ -1,4 +1,4 @@
-export type GroceryCategory = 'proteins' | 'fruits' | 'vegetables' | 'snacks' | 'drinks' | 'meal-substitutes' | 'pantry'
+export type GroceryCategory = 'proteins' | 'fruits' | 'vegetables' | 'snacks' | 'drinks' | 'meal-substitutes' | 'pantry' | 'seasonings'
 
 export interface GroceryItem {
   id: string
