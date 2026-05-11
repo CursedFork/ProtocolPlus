@@ -148,7 +148,7 @@ function getRecommendedSupplements(stats: UserStats | null): SupplementReminder[
 
   const extras: SupplementReminder[] = []
   const { sex, age, weightLbs, activityLevel } = stats
-  const isHighOutput = activityLevel === 'very_active' || activityLevel === 'extreme'
+  const isHighOutput = activityLevel === 'very' || activityLevel === 'extreme'
   const isActive = activityLevel === 'moderate' || isHighOutput
 
   // B12 — universal; metabolic + neurological baseline for active adults
