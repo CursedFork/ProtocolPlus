@@ -32,25 +32,160 @@ const dailyHabits = [
   { id: 'veggies', label: 'Ate vegetables with 2+ meals', icon: Apple },
 ]
 
-const todayMeals = [
-  { time: 'Morning', name: 'Protein + Oats', kcal: 450, protein: 35, done: true },
-  { time: 'Midday', name: 'Chicken + Rice + Veg', kcal: 550, protein: 45, done: false },
-  { time: 'Afternoon', name: 'Greek yogurt + fruit', kcal: 200, protein: 18, done: false },
-  { time: 'Evening', name: 'Salmon + Sweet potato + Greens', kcal: 600, protein: 42, done: false },
-]
-
 const weeklyGoals = [
   { label: 'Training sessions', current: 2, target: 4, color: 'orange' as const },
   { label: 'Cardio sessions', current: 1, target: 3, color: 'blue' as const },
   { label: 'Days on-plan', current: 5, target: 7, color: 'green' as const },
 ]
 
-const supplementsReminders = [
-  { name: 'Creatine', dose: '5g', timing: 'Post-workout / anytime' },
-  { name: 'Omega-3', dose: '2g EPA+DHA', timing: 'With meals' },
-  { name: 'Vitamin D3', dose: '2000 IU', timing: 'With morning meal' },
-  { name: 'Magnesium', dose: '400mg glycinate', timing: 'Before bed' },
-]
+// ── Dynamic meal generator ────────────────────────────────────────────────────
+
+/** Convert a date string to a stable uint32 seed via djb2-style hash */
+function hashString(s: string): number {
+  let h = 5381
+  for (let i = 0; i < s.length; i++) h = (Math.imul(h, 33) ^ s.charCodeAt(i)) >>> 0
+  return h
+}
+
+/** Mulberry32 PRNG — fast, small, good distribution */
+function seededRng(seed: number) {
+  let s = seed >>> 0
+  return (): number => {
+    s = (s + 0x6d2b79f5) >>> 0
+    let t = Math.imul(s ^ (s >>> 15), 1 | s)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 0x100000000
+  }
+}
+
+function pickRandom<T>(arr: T[], rng: () => number): T {
+  return arr[Math.floor(rng() * arr.length)]
+}
+
+interface MealTemplate { time: string; name: string; baseKcal: number; baseProtein: number }
+interface DailyMeal { time: string; name: string; kcal: number; protein: number }
+
+const MEAL_POOL: Record<string, MealTemplate[]> = {
+  Morning: [
+    { time: 'Morning', name: 'Protein Oats + Banana', baseKcal: 450, baseProtein: 35 },
+    { time: 'Morning', name: 'Eggs + Avocado Toast', baseKcal: 420, baseProtein: 28 },
+    { time: 'Morning', name: 'Greek Yogurt Parfait + Granola', baseKcal: 380, baseProtein: 30 },
+    { time: 'Morning', name: 'Protein Pancakes + Berries', baseKcal: 480, baseProtein: 40 },
+    { time: 'Morning', name: 'Cottage Cheese + Fruit Bowl', baseKcal: 340, baseProtein: 32 },
+    { time: 'Morning', name: 'Overnight Oats + Whey Shake', baseKcal: 430, baseProtein: 38 },
+    { time: 'Morning', name: 'Egg White Omelette + Toast', baseKcal: 360, baseProtein: 33 },
+  ],
+  Midday: [
+    { time: 'Midday', name: 'Chicken + Rice + Veg', baseKcal: 550, baseProtein: 45 },
+    { time: 'Midday', name: 'Turkey Quinoa Bowl', baseKcal: 530, baseProtein: 42 },
+    { time: 'Midday', name: 'Tuna Salad Wrap', baseKcal: 480, baseProtein: 38 },
+    { time: 'Midday', name: 'Ground Beef + Sweet Potato', baseKcal: 570, baseProtein: 44 },
+    { time: 'Midday', name: 'Salmon Salad Bowl', baseKcal: 500, baseProtein: 40 },
+    { time: 'Midday', name: 'Shrimp Stir-fry + Rice', baseKcal: 490, baseProtein: 38 },
+    { time: 'Midday', name: 'Steak + Potato + Salad', baseKcal: 600, baseProtein: 48 },
+  ],
+  Afternoon: [
+    { time: 'Afternoon', name: 'Greek Yogurt + Berries', baseKcal: 200, baseProtein: 18 },
+    { time: 'Afternoon', name: 'Protein Shake + Banana', baseKcal: 210, baseProtein: 26 },
+    { time: 'Afternoon', name: 'Cottage Cheese + Almonds', baseKcal: 230, baseProtein: 20 },
+    { time: 'Afternoon', name: 'Beef Jerky + Rice Cakes', baseKcal: 210, baseProtein: 18 },
+    { time: 'Afternoon', name: 'Edamame + String Cheese', baseKcal: 190, baseProtein: 16 },
+    { time: 'Afternoon', name: 'Hard-boiled Eggs + Veggies', baseKcal: 180, baseProtein: 16 },
+    { time: 'Afternoon', name: 'Apple + Almond Butter + Jerky', baseKcal: 240, baseProtein: 14 },
+  ],
+  Evening: [
+    { time: 'Evening', name: 'Salmon + Sweet Potato + Greens', baseKcal: 600, baseProtein: 42 },
+    { time: 'Evening', name: 'Chicken Thigh + Roasted Veg', baseKcal: 550, baseProtein: 40 },
+    { time: 'Evening', name: 'Ground Turkey Pasta', baseKcal: 580, baseProtein: 44 },
+    { time: 'Evening', name: 'Lean Beef Stir-fry + Noodles', baseKcal: 570, baseProtein: 42 },
+    { time: 'Evening', name: 'Tilapia + Brown Rice + Broccoli', baseKcal: 520, baseProtein: 38 },
+    { time: 'Evening', name: 'Pork Tenderloin + Mashed Potato', baseKcal: 560, baseProtein: 42 },
+    { time: 'Evening', name: 'Bison Burger + Sweet Potato Fries', baseKcal: 590, baseProtein: 45 },
+  ],
+}
+
+/**
+ * Returns 4 daily meals seeded by today's date string.
+ * Meals change each morning and stay stable within the day.
+ * Kcal and protein are scaled proportionally to the user's targets.
+ */
+function getDailyMeals(today: string, calorieTarget: number, proteinTarget: number): DailyMeal[] {
+  const rng = seededRng(hashString(today))
+  const slots = ['Morning', 'Midday', 'Afternoon', 'Evening'] as const
+  const selected = slots.map((slot) => pickRandom(MEAL_POOL[slot], rng))
+
+  const totalBaseKcal = selected.reduce((s, m) => s + m.baseKcal, 0)
+  const totalBaseProtein = selected.reduce((s, m) => s + m.baseProtein, 0)
+  const kcalScale = calorieTarget / totalBaseKcal
+  const proteinScale = proteinTarget / totalBaseProtein
+
+  return selected.map((m) => ({
+    time: m.time,
+    name: m.name,
+    kcal: Math.round(m.baseKcal * kcalScale),
+    protein: Math.round(m.baseProtein * proteinScale),
+  }))
+}
+
+// ── Smart supplement recommendations ─────────────────────────────────────────
+
+interface SupplementReminder { name: string; dose: string; timing: string }
+
+/**
+ * Returns a personalized supplement checklist based on user stats.
+ * Tier 1 core supplements are always included.
+ * Tier 2/3 additions are determined by activity level, age, sex, and weight.
+ */
+function getRecommendedSupplements(stats: UserStats | null): SupplementReminder[] {
+  const core: SupplementReminder[] = [
+    { name: 'Creatine', dose: '5g monohydrate', timing: 'Post-workout / anytime' },
+    { name: 'Omega-3', dose: '2g EPA+DHA', timing: 'With meals' },
+    { name: 'Vitamin D3 + K2', dose: '2000 IU + 100mcg', timing: 'With morning meal' },
+    { name: 'Magnesium', dose: '400mg glycinate', timing: 'Before bed' },
+  ]
+
+  if (!stats) return core
+
+  const extras: SupplementReminder[] = []
+  const { sex, age, weightLbs, activityLevel } = stats
+  const isHighOutput = activityLevel === 'very_active' || activityLevel === 'extreme'
+  const isActive = activityLevel === 'moderate' || isHighOutput
+
+  // B12 — universal; metabolic + neurological baseline for active adults
+  extras.push({ name: 'Vitamin B12', dose: '500mcg methylcobalamin', timing: 'Morning with food' })
+
+  // Zinc — males: testosterone & immune support; modest evidence, low risk
+  if (sex === 'male') {
+    extras.push({ name: 'Zinc', dose: '15–25mg picolinate', timing: 'With dinner (separate from calcium)' })
+  }
+
+  // Collagen — females or 35+: joint integrity & skin collagen synthesis
+  if (sex === 'female' || age >= 35) {
+    extras.push({ name: 'Collagen Peptides', dose: '10g + Vitamin C', timing: '30 min pre-workout' })
+  }
+
+  // Ashwagandha — high-output athletes: cortisol management, recovery
+  if (isHighOutput) {
+    extras.push({ name: 'Ashwagandha (KSM-66)', dose: '300–600mg', timing: 'Evening with food' })
+  }
+
+  // Beta-Alanine — performance-focused training 4+ days/week
+  if (isHighOutput) {
+    extras.push({ name: 'Beta-Alanine', dose: '3.2g', timing: 'Pre-workout (tingling is normal)' })
+  }
+
+  // HMB — heavier athletes or 40+: anti-catabolic during deficit or aging
+  if (weightLbs >= 190 || age >= 40) {
+    extras.push({ name: 'HMB', dose: '3g HMB-FA', timing: '30–45 min pre-workout or with protein' })
+  }
+
+  // L-Carnitine — moderate+ activity on a calorie deficit: fat oxidation support
+  if (isActive) {
+    extras.push({ name: 'L-Carnitine (LCLT)', dose: '2g', timing: 'With a carb-containing meal' })
+  }
+
+  return [...core, ...extras]
+}
 
 const stagger = {
   container: { transition: { staggerChildren: 0.06 } },
@@ -65,12 +200,16 @@ export default function Dashboard() {
   const [waterGlasses, setWaterGlasses] = useLocalStorage(`water_${today}`, 0)
   const [habits, setHabits] = useLocalStorage<Record<string, boolean>>(`habits_${today}`, {})
   const [suppDone, setSuppDone] = useLocalStorage<Record<string, boolean>>(`supps_${today}`, {})
+  const [mealDone, setMealDone] = useLocalStorage<Record<string, boolean>>(`meals_${today}`, {})
 
   const habitsDone = dailyHabits.filter((h) => habits[h.id]).length
 
   const targets = userStats ? calculateTargets(userStats) : null
   const calorieGoal = targets?.calorieTarget ?? DEFAULT_CALORIE_GOAL
   const proteinGoal = targets?.proteinTarget ?? DEFAULT_PROTEIN_GOAL
+
+  const todayMeals = getDailyMeals(today, calorieGoal, proteinGoal)
+  const supplementsReminders = getRecommendedSupplements(userStats)
 
   const WATER_GOAL = 8
 
@@ -122,16 +261,24 @@ export default function Dashboard() {
             <Card>
               <CardHeader>
                 <div>
-                  <CardTitle>Today's Meals</CardTitle>
-                  <CardDescription>Planned nutrition for the day</CardDescription>
+                  <CardTitle>Today's Recommended Meals</CardTitle>
+                  <CardDescription>Refreshes each morning · scaled to your target</CardDescription>
                 </div>
                 <Badge variant="green" className="flex-shrink-0">
-                  {todayMeals.reduce((s, m) => s + m.kcal, 0)} kcal total
+                  {todayMeals.reduce((s, m) => s + m.kcal, 0)} kcal
                 </Badge>
               </CardHeader>
               <div className="space-y-2">
                 {todayMeals.map((meal) => (
-                  <MealRow key={meal.time} {...meal} />
+                  <MealRow
+                    key={meal.time}
+                    time={meal.time}
+                    name={meal.name}
+                    kcal={meal.kcal}
+                    protein={meal.protein}
+                    done={!!mealDone[meal.time]}
+                    onToggle={() => setMealDone((prev) => ({ ...prev, [meal.time]: !prev[meal.time] }))}
+                  />
                 ))}
               </div>
               <div className="mt-4 pt-3 border-t border-border space-y-2">
@@ -156,7 +303,7 @@ export default function Dashboard() {
                   <CardDescription>Today's protocol</CardDescription>
                 </div>
                 <Badge variant="purple">
-                  {Object.values(suppDone).filter(Boolean).length}/{supplementsReminders.length}
+                  {supplementsReminders.filter((s) => suppDone[s.name]).length}/{supplementsReminders.length}
                 </Badge>
               </CardHeader>
               <div className="space-y-2">
@@ -631,19 +778,25 @@ function StatCard({
 }
 
 function MealRow({
-  time, name, kcal, protein, done,
+  time, name, kcal, protein, done, onToggle,
 }: {
   time: string
   name: string
   kcal: number
   protein: number
   done: boolean
+  onToggle: () => void
 }) {
   return (
-    <div className={cn(
-      'flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all',
-      done ? 'border-green-500/20 bg-green-500/5' : 'border-border',
-    )}>
+    <button
+      onClick={onToggle}
+      className={cn(
+        'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all duration-150',
+        done
+          ? 'border-green-500/20 bg-green-500/5 opacity-75'
+          : 'border-border hover:border-muted-foreground/30 hover:bg-muted/50',
+      )}
+    >
       {done ? (
         <CheckCircle2 className="h-4 w-4 text-green-400 flex-shrink-0" />
       ) : (
@@ -652,13 +805,15 @@ function MealRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-[10px] px-1.5 py-0">{time}</Badge>
-          <span className="text-sm font-medium text-foreground truncate">{name}</span>
+          <span className={cn('text-sm font-medium text-foreground truncate', done && 'line-through text-muted-foreground')}>
+            {name}
+          </span>
         </div>
       </div>
       <div className="text-right flex-shrink-0">
         <p className="text-xs font-medium text-foreground">{kcal} kcal</p>
         <p className="text-[10px] text-muted-foreground">{protein}g protein</p>
       </div>
-    </div>
+    </button>
   )
 }
