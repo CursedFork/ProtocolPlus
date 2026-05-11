@@ -17,6 +17,7 @@ import {
   ACTIVITY_SHORT,
   calculateTargets,
 } from '@/lib/stats'
+import { quotes } from '@/data/quotes'
 
 // ── Static data ──────────────────────────────────────────────────────────────
 
@@ -210,6 +211,7 @@ export default function Dashboard() {
 
   const todayMeals = getDailyMeals(today, calorieGoal, proteinGoal)
   const supplementsReminders = getRecommendedSupplements(userStats)
+  const todayQuote = quotes[hashString(today) % quotes.length]
 
   const WATER_GOAL = 8
 
@@ -440,19 +442,19 @@ export default function Dashboard() {
             </Card>
           </motion.div>
 
-          {/* Motivational widget */}
+          {/* Daily quote */}
           <motion.div variants={stagger.item}>
             <Card variant="glass" className="border-primary/20 gradient-green">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-3">
                 <Zap className="h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold text-primary">Today's Principle</span>
+                <span className="text-sm font-semibold text-primary">Today's Quote</span>
               </div>
               <p className="text-sm text-foreground leading-relaxed italic">
-                "Consistency over intensity. One perfect week won't transform you — but 52 good weeks will."
+                "{todayQuote.text}"
               </p>
               <div className="mt-3 flex items-center gap-2">
-                <TrendingUp className="h-3.5 w-3.5 text-primary" />
-                <span className="text-xs text-muted-foreground">Progressive overload is the mechanism. Habits are the system.</span>
+                <TrendingUp className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                <span className="text-xs font-medium text-primary/80">— {todayQuote.author}</span>
               </div>
             </Card>
           </motion.div>
