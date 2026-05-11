@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { BookOpen, ExternalLink, Filter, Shield, ChevronDown, ChevronUp, FlaskConical, Dumbbell } from 'lucide-react'
+import { BookOpen, ExternalLink, Filter, Shield, ChevronDown, ChevronUp, FlaskConical, Dumbbell, Utensils } from 'lucide-react'
 import { Card } from '@/components/shared/Card'
 import { SearchBar } from '@/components/shared/SearchBar'
 import { Badge } from '@/components/shared/Badge'
 import { supplements } from '@/data/supplements'
 import { getSweetenerCitations, type FlatSweetenerCitation } from '@/data/sweeteners'
 import { getWorkoutCitations } from '@/data/workoutResearch'
+import { getDietCitations, type DietCitation } from '@/data/dietCitations'
 import type { Citation } from '@/types/supplement'
 import { cn } from '@/lib/utils'
 
@@ -61,12 +62,14 @@ type FilterType = 'all' | Citation['type']
 
 const sweetenerCitations = getSweetenerCitations()
 const workoutCitations = getWorkoutCitations()
+const dietCitationsData = getDietCitations()
 
 export default function Sources() {
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState<FilterType>('all')
   const [expandedSupp, setExpandedSupp] = useState<string | null>(null)
   const [expandedSweetener, setExpandedSweetener] = useState<string | null>(null)
+  const [expandedDietSection, setExpandedDietSection] = useState<string | null>(null)
   const [showWorkout, setShowWorkout] = useState(false)
 
   const allCitations: FlatCitation[] = useMemo(() =>
@@ -104,10 +107,10 @@ export default function Sources() {
     return grouped
   }, [filteredCitations])
 
-  const totalStudies = allCitations.length + sweetenerCitations.length + workoutCitations.length
-  const metaAnalyses = [...allCitations, ...sweetenerCitations, ...workoutCitations].filter((c) => c.type === 'meta-analysis' || c.type === 'systematic-review').length
-  const govtSources = [...allCitations, ...sweetenerCitations, ...workoutCitations].filter((c) => c.type === 'government').length
-  const rcts = [...allCitations, ...sweetenerCitations, ...workoutCitations].filter((c) => c.type === 'rct' || c.type === 'clinical-trial').length
+  const totalStudies = allCitations.length + sweetenerCitations.length + workoutCitations.length + dietCitationsData.length
+  const metaAnalyses = [...allCitations, ...sweetenerCitations, ...workoutCitations, ...dietCitationsData].filter((c) => c.type === 'meta-analysis' || c.type === 'systematic-review').length
+  const govtSources = [...allCitations, ...sweetenerCitations, ...workoutCitations, ...dietCitationsData].filter((c) => c.type === 'government').length
+  const rcts = [...allCitations, ...sweetenerCitations, ...workoutCitations, ...dietCitationsData].filter((c) => c.type === 'rct' || c.type === 'clinical-trial').length
 
   return (
     <motion.div
@@ -343,6 +346,73 @@ export default function Sources() {
                             {citationTypeLabels[cite.type] ?? cite.type}
                           </span>
                           {cite.year && <span className="text-[10px] text-muted-foreground">{cite.year}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            )
+          })
+        })()}
+      </div>
+
+      {/* Diet Plan citations */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <Utensils className="h-4 w-4 text-green-400" />
+          Diet Plan Citations
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          Citations underlying the Diet Plan's evidence-based recommendations on calorie deficits, macronutrients, meal timing, fiber, alcohol and caffeine, and budget-friendly nutrition.
+        </p>
+        {(() => {
+          const bySection: Record<string, DietCitation[]> = {}
+          dietCitationsData.forEach((c) => {
+            if (!bySection[c.section]) bySection[c.section] = []
+            bySection[c.section].push(c)
+          })
+          const sectionKeys = [...new Set(dietCitationsData.map((c) => c.section))]
+          return sectionKeys.map((sid) => {
+            const cites = bySection[sid]
+            const isOpen = expandedDietSection === sid
+            const label = cites[0].sectionLabel
+            return (
+              <Card key={sid}>
+                <button onClick={() => setExpandedDietSection(isOpen ? null : sid)} className="w-full text-left">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Utensils className="h-4 w-4 text-green-400 flex-shrink-0" />
+                      <span className="text-sm font-medium text-foreground">{label}</span>
+                      <Badge variant="green" className="text-[9px]">{cites.length} citation{cites.length !== 1 ? 's' : ''}</Badge>
+                    </div>
+                    {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                  </div>
+                </button>
+                {isOpen && (
+                  <div className="mt-4 space-y-3 pt-4 border-t border-border">
+                    {cites.map((cite, i) => (
+                      <div key={i} className="bg-muted/30 rounded-lg p-3 border border-border/60">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-foreground leading-relaxed">{cite.title}</p>
+                            {cite.studyDescription && (
+                              <p className="text-[10px] text-blue-300/80 mt-1 italic leading-relaxed">{cite.studyDescription}</p>
+                            )}
+                          </div>
+                          {cite.url && (
+                            <a href={cite.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 flex-shrink-0">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <span className={cn('text-[9px] px-1.5 py-0.5 rounded-full border font-medium', citationTypeColors[cite.type] ?? 'text-muted-foreground border-border')}>
+                            {citationTypeLabels[cite.type] ?? cite.type}
+                          </span>
+                          {cite.journal && <span className="text-[10px] text-muted-foreground italic truncate max-w-48">{cite.journal}</span>}
+                          {cite.year && <span className="text-[10px] text-muted-foreground">{cite.year}</span>}
+                          {cite.authors && <span className="text-[10px] text-muted-foreground">{cite.authors}</span>}
                         </div>
                       </div>
                     ))}

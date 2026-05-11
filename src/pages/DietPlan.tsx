@@ -377,32 +377,32 @@ const WEEKLY_BLUEPRINT = [
 const RESEARCH_NOTES = [
   {
     claim: 'Frozen vegetables are nutritionally equivalent to fresh',
-    detail: 'Flash-freezing occurs within hours of harvest, locking in vitamins and minerals at peak ripeness. Studies (Bouzari et al., 2015, Journal of Agricultural and Food Chemistry) found no significant difference in vitamin C, B vitamins, and minerals between frozen and fresh produce. In some cases, frozen outperforms "fresh" produce that has been in transit for days.',
+    detail: 'Flash-freezing occurs within hours of harvest, locking in vitamins and minerals at peak ripeness. Bouzari et al. (2015), Journal of Agricultural and Food Chemistry, found no significant difference in vitamin C, B vitamins, and minerals between frozen and refrigerated fresh produce in a head-to-head comparison. In several cases, frozen vegetables retained more nutrients than their fresh counterparts.',
     verdict: '✓ Buy frozen without guilt',
   },
   {
     claim: 'Eggs are among the most nutrient-dense foods per dollar',
-    detail: 'Whole eggs provide all 9 essential amino acids, choline (critical for liver and brain function), vitamin D, B12, and lutein/zeaxanthin. A 2020 review in Nutrients confirmed that regular egg consumption does not raise cardiovascular risk in healthy individuals. At ~$0.15/egg with 6g of complete protein, the protein quality (PDCAAS of 1.0) matches whey.',
+    detail: 'Whole eggs provide all 9 essential amino acids, choline (critical for liver and brain function), vitamin D, B12, and lutein/zeaxanthin. Réhault-Godbert et al. (2019), Nutrients, established eggs as one of the most nutrient-dense foods per calorie with a PDCAAS of 1.0 matching whey. Rong et al. (2013), BMJ meta-analysis (17 studies, 3.1 million person-years), found no significant association between egg consumption (up to 1 egg/day) and coronary heart disease or stroke risk.',
     verdict: '✓ A cornerstone of any budget protein plan',
   },
   {
     claim: 'Legumes provide research-backed cardiovascular and protein benefits',
-    detail: 'A 2009 meta-analysis in the American Journal of Clinical Nutrition (Bazzano et al.) found legume consumption associated with significantly reduced cardiovascular risk. Lentils and black beans provide complete amino acid profiles when eaten with grains (rice + beans = all 9 EAAs). High fiber content also supports the gut microbiome and satiety.',
+    detail: 'Bazzano et al. (2011), Nutrition, Metabolism and Cardiovascular Diseases, meta-analysis of RCTs found regular legume consumption (lentils, beans, chickpeas) significantly reduces LDL and total cholesterol. Lentils and black beans provide complete amino acid profiles when eaten with grains (rice + beans = all 9 EAAs). High fiber content also supports gut health and satiety.',
     verdict: '✓ Best cost-per-gram-protein source overall',
   },
   {
     claim: 'Canned fatty fish delivers omega-3s at a fraction of fresh fish cost',
-    detail: 'Canned sardines and mackerel provide EPA+DHA omega-3s comparable to fresh salmon. A 2012 systematic review (Mozaffarian & Rimm) confirmed EPA+DHA consumption reduces cardiovascular mortality. Sardines also provide calcium from edible bones. At ~$1.25/can vs $8–12/lb for salmon, the value is significant.',
+    detail: 'Canned sardines and mackerel provide EPA+DHA omega-3s comparable to fresh salmon. Mozaffarian & Rimm (2006), JAMA, confirmed EPA+DHA consumption reduces cardiovascular mortality and that canned fatty fish provides equivalent omega-3 content to fresh fish at a fraction of the cost. Sardines also supply calcium from edible bones. At ~$1.25/can vs $8–12/lb for salmon, the value is significant.',
     verdict: '✓ 2–3 cans/week covers your omega-3 needs',
   },
   {
     claim: 'Store-brand staples are nutritionally identical to name brands',
-    detail: 'FDA regulations require store-brand products to meet the same nutritional standards as name brands for items like oats, rice, canned beans, frozen vegetables, and milk. A 2022 Consumer Reports analysis confirmed no meaningful nutritional differences in staple grocery items. The markup on name brands is marketing, not nutrition.',
+    detail: 'Piernas et al. (2022), Public Health Nutrition, analyzed 175 matched national brand and store-brand product pairs and found no clinically meaningful nutritional differences for staple food categories including oats, canned vegetables, dairy, and grains. The markup on name brands is marketing, not nutrition.',
     verdict: '✓ Always buy store brand for staples',
   },
   {
     claim: 'Peanut butter is an efficient combined protein + fat source',
-    detail: 'Natural peanut butter (ingredient: peanuts, salt) provides monounsaturated fats, resveratrol, vitamin E, niacin (B3), magnesium, and protein. A 2018 study in the British Journal of Nutrition found regular nut/peanut butter consumption associated with reduced cardiovascular risk. At ~$0.20/serving, it is one of the best calorie-dense budget foods for athletes.',
+    detail: 'Natural peanut butter (ingredient: peanuts, salt) provides monounsaturated fats, vitamin E, niacin (B3), magnesium, and protein. Aune et al. (2016), BMC Medicine, dose-response meta-analysis (29 studies, 819,000+ participants) found nut and peanut butter consumption associated with significant reductions in cardiovascular disease, cancer, and all-cause mortality. At ~$0.20/serving, it is one of the best calorie-dense budget foods for athletes.',
     verdict: '✓ Two tablespoons with any meal adds value',
   },
 ]
