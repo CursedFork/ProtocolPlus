@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Dumbbell, Clock, ChevronDown, ChevronUp, Info, Calendar, Zap, FlaskConical, ExternalLink, BookOpen } from 'lucide-react'
+import { Dumbbell, Clock, ChevronDown, ChevronUp, Info, Calendar, Zap, FlaskConical, ExternalLink, BookOpen, Sparkles } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/shared/Card'
 import { Badge } from '@/components/shared/Badge'
 import { Accordion, AccordionItem } from '@/components/shared/Accordion'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 import { workoutPlans } from '@/data/workouts'
+import { fatLossPlans } from '@/data/workoutsFatLoss'
 import { buildSchedule, validateDaySelection } from '@/utils/workoutScaling'
 import { supersetTypes, workoutCitations } from '@/data/workoutResearch'
 import type { DayOfWeek, SplitType } from '@/types/workout'
@@ -28,12 +29,14 @@ const muscleGroupColors: Record<string, string> = {
 
 export default function WorkoutPlanner() {
   const [selectedDays, setSelectedDays] = useLocalStorage<DayOfWeek[]>('workout_days', ['Monday', 'Wednesday', 'Friday'])
+  const [goalMode, setGoalMode] = useLocalStorage<'strength' | 'fat-loss'>('workout_goal', 'strength')
   const [expandedDay, setExpandedDay] = useState<number | null>(null)
 
   const validation = validateDaySelection(selectedDays)
   const splitType = selectedDays.length as SplitType
-  const plan = workoutPlans[splitType] ?? workoutPlans[3]
-  const schedule = buildSchedule(selectedDays)
+  const planSet = goalMode === 'fat-loss' ? fatLossPlans : workoutPlans
+  const plan = planSet[splitType] ?? planSet[3]
+  const schedule = buildSchedule(selectedDays, plan)
 
   function toggleDay(day: DayOfWeek) {
     setSelectedDays((prev) => {
@@ -59,11 +62,52 @@ export default function WorkoutPlanner() {
         <div className="flex gap-2.5">
           <Info className="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" />
           <p className="text-xs text-yellow-300 leading-relaxed">
-            This workout template is a beginner-to-intermediate evidence-based placeholder following Push/Pull/Legs principles.
-            Individual needs vary — consult a certified personal trainer for personalized programming. Always warm up and use
-            proper form over maximum weight.
+            {goalMode === 'fat-loss'
+              ? 'This Lean & Toned program uses higher rep ranges, dumbbells/cables, and integrated cardio to support fat loss while maintaining muscle tone. It is not a bulking program. Pair with a moderate calorie deficit for best results. Individual needs vary — consult a certified personal trainer for personalized programming.'
+              : 'This workout template is a beginner-to-intermediate evidence-based placeholder following Push/Pull/Legs principles. Individual needs vary — consult a certified personal trainer for personalized programming. Always warm up and use proper form over maximum weight.'}
           </p>
         </div>
+      </Card>
+
+      {/* Goal mode toggle */}
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Training Goal</CardTitle>
+            <CardDescription>Choose a program style that matches your objective.</CardDescription>
+          </div>
+        </CardHeader>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => { setGoalMode('strength'); setExpandedDay(null) }}
+            className={cn(
+              'flex items-center justify-center gap-2 rounded-lg border py-3 px-3 text-sm font-medium transition-all duration-150',
+              goalMode === 'strength'
+                ? 'bg-primary/15 border-primary/40 text-primary'
+                : 'border-border text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground',
+            )}
+          >
+            <Dumbbell className="h-4 w-4" />
+            Strength & Size
+          </button>
+          <button
+            onClick={() => { setGoalMode('fat-loss'); setExpandedDay(null) }}
+            className={cn(
+              'flex items-center justify-center gap-2 rounded-lg border py-3 px-3 text-sm font-medium transition-all duration-150',
+              goalMode === 'fat-loss'
+                ? 'bg-pink-500/15 border-pink-500/40 text-pink-400'
+                : 'border-border text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground',
+            )}
+          >
+            <Sparkles className="h-4 w-4" />
+            Lean & Toned
+          </button>
+        </div>
+        {goalMode === 'fat-loss' && (
+          <p className="text-[11px] text-pink-400/80 mt-2 leading-relaxed">
+            ✨ Lean & Toned mode: higher reps (12–20), dumbbells & cables only, glute/core emphasis, integrated cardio every session. Designed to burn fat without adding bulk.
+          </p>
+        )}
       </Card>
 
       {/* Day selector */}
@@ -107,10 +151,10 @@ export default function WorkoutPlanner() {
 
       {/* Plan overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="border-primary/20 gradient-green">
+        <Card className={cn(goalMode === 'fat-loss' ? 'border-pink-500/20 bg-pink-500/5' : 'border-primary/20 gradient-green')}>
           <div className="flex items-center gap-2 mb-2">
-            <Zap className="h-4 w-4 text-primary" />
-            <span className="font-semibold text-primary text-sm">{plan.name}</span>
+            {goalMode === 'fat-loss' ? <Sparkles className="h-4 w-4 text-pink-400" /> : <Zap className="h-4 w-4 text-primary" />}
+            <span className={cn('font-semibold text-sm', goalMode === 'fat-loss' ? 'text-pink-400' : 'text-primary')}>{plan.name}</span>
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed">{plan.description}</p>
           <div className="mt-3 flex flex-wrap gap-2">

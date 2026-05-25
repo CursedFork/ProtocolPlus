@@ -3,8 +3,7 @@ import { workoutPlans } from '@/data/workouts'
 
 const ALL_DAYS: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
-export function buildSchedule(selectedDays: DayOfWeek[]): Record<DayOfWeek, string> {
-  const plan = workoutPlans[selectedDays.length as SplitType]
+export function buildSchedule(selectedDays: DayOfWeek[], plan: WorkoutPlan): Record<DayOfWeek, string> {
   const schedule: Record<string, string> = {}
 
   ALL_DAYS.forEach((day) => {
@@ -19,9 +18,10 @@ export function buildSchedule(selectedDays: DayOfWeek[]): Record<DayOfWeek, stri
   return schedule as Record<DayOfWeek, string>
 }
 
-export function getPlanForDays(count: number): WorkoutPlan | null {
+export function getPlanForDays(count: number, plans?: Record<SplitType, WorkoutPlan>): WorkoutPlan | null {
   if (count < 2 || count > 6) return null
-  return workoutPlans[count as SplitType] ?? null
+  const source = plans ?? workoutPlans
+  return source[count as SplitType] ?? null
 }
 
 export function getRestDayCount(splitType: SplitType): number {
