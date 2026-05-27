@@ -12,7 +12,7 @@ import Sources from '@/pages/Sources'
 import AuthPage from '@/pages/AuthPage'
 
 function AppRoutes() {
-  const { session, loading } = useAuth()
+  const { user, loading } = useAuth()
 
   if (loading) {
     return (
@@ -22,7 +22,7 @@ function AppRoutes() {
     )
   }
 
-  if (!session) {
+  if (!user) {
     return (
       <Routes>
         <Route path="/auth" element={<AuthPage />} />

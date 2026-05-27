@@ -1,10 +1,11 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import type { Session, User } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
+import type { Models } from 'appwrite'
+import { account, ID } from '@/lib/appwrite'
+
+type AppwriteUser = Models.User<Models.Preferences>
 
 interface AuthContextValue {
-  session: Session | null
-  user: User | null
+  user: AppwriteUser | null
   loading: boolean
   signUp: (email: string, password: string) => Promise<{ error: string | null }>
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
@@ -14,40 +15,47 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null)
+  const [user, setUser] = useState<AppwriteUser | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Grab current session
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setLoading(false)
-    })
-
-    // Listen for auth state changes
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s)
-    })
-
-    return () => listener.subscription.unsubscribe()
+    account.get()
+      .then(setUser)
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false))
   }, [])
 
   async function signUp(email: string, password: string) {
-    const { error } = await supabase.auth.signUp({ email, password })
-    return { error: error?.message ?? null }
+    try {
+      await account.create(ID.unique(), email, password)
+      // Automatically sign in after registration
+      await account.createEmailPasswordSession(email, password)
+      const u = await account.get()
+      setUser(u)
+      return { error: null }
+    } catch (e: unknown) {
+      return { error: (e as { message?: string })?.message ?? 'Sign-up failed' }
+    }
   }
 
   async function signIn(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error: error?.message ?? null }
+    try {
+      await account.createEmailPasswordSession(email, password)
+      const u = await account.get()
+      setUser(u)
+      return { error: null }
+    } catch (e: unknown) {
+      return { error: (e as { message?: string })?.message ?? 'Invalid email or password' }
+    }
   }
 
   async function signOut() {
-    await supabase.auth.signOut()
+    await account.deleteSession('current')
+    setUser(null)
   }
 
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   )

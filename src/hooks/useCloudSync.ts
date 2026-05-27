@@ -1,70 +1,17 @@
 /**
  * useCloudSync
  *
- * Thin layer on top of useLocalStorage that also reads/writes to Supabase.
+ * Thin layer on top of useLocalStorage that also reads/writes to Appwrite.
  * localStorage stays the source of truth for UI responsiveness.
- * Supabase is synced asynchronously — writes are fire-and-forget.
+ * Appwrite is synced asynchronously — writes are fire-and-forget.
  */
 
 import { useEffect, useCallback } from 'react'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
-import { supabase } from '@/lib/supabase'
+import { databases, upsertDocument, ID, Query, Permission, Role, DATABASE_ID, COLLECTIONS } from '@/lib/appwrite'
 import { useAuth } from '@/contexts/AuthContext'
 import type { UserStats } from '@/lib/stats'
 import type { WeightEntry, StrengthEntry, Goal } from '@/types/progress'
-
-// ── Row types (mirror the DB schema) ──────────────────────────────────────
-
-interface ProfileRow {
-  id: string
-  sex: 'male' | 'female'
-  age: number
-  weight_lbs: number
-  height_ft: number
-  height_in: number
-  activity_level: UserStats['activityLevel']
-}
-
-interface WeightRow {
-  id: string
-  user_id: string
-  date: string
-  weight_lbs: number
-  notes: string | null
-}
-
-interface StrengthRow {
-  id: string
-  user_id: string
-  date: string
-  exercise: string
-  weight_lbs: number
-  reps: number
-  sets: number
-}
-
-interface GoalRow {
-  id: string
-  user_id: string
-  title: string
-  target_value: number
-  current_value: number
-  unit: string
-  category: string
-}
-
-interface HabitRow {
-  id: string
-  user_id: string
-  date: string
-  habits: string[]
-}
-
-interface PrefsRow {
-  user_id: string
-  workout_days: string[]
-  goal_mode: string
-}
 
 // ── Profile (UserStats) ────────────────────────────────────────────────────
 
@@ -72,43 +19,35 @@ export function useCloudStats() {
   const { user } = useAuth()
   const [stats, setStats, clearStats] = useLocalStorage<UserStats | null>('user_stats', null)
 
-  // On login: fetch from Supabase and overwrite localStorage
   useEffect(() => {
     if (!user) return
-    supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        const row = data as ProfileRow | null
-        if (row) {
-          setStats({
-            sex: row.sex,
-            age: row.age,
-            weightLbs: row.weight_lbs,
-            heightFt: row.height_ft,
-            heightIn: row.height_in,
-            activityLevel: row.activity_level,
-          })
-        }
+    databases
+      .getDocument(DATABASE_ID, COLLECTIONS.PROFILES, user.$id)
+      .then((doc) => {
+        setStats({
+          sex: doc.sex as UserStats['sex'],
+          age: doc.age as number,
+          weightLbs: doc.weight_lbs as number,
+          heightFt: doc.height_ft as number,
+          heightIn: doc.height_in as number,
+          activityLevel: doc.activity_level as UserStats['activityLevel'],
+        })
       })
+      .catch(() => { /* no profile yet — that's fine */ })
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveStats = useCallback(
     async (s: UserStats) => {
       setStats(s)
       if (!user) return
-      await supabase.from('profiles').upsert({
-        id: user.id,
+      await upsertDocument(COLLECTIONS.PROFILES, user.$id, {
         sex: s.sex,
         age: s.age,
         weight_lbs: s.weightLbs,
         height_ft: s.heightFt,
         height_in: s.heightIn,
         activity_level: s.activityLevel,
-        updated_at: new Date().toISOString(),
-      })
+      }, user.$id)
     },
     [user, setStats],
   )
@@ -124,30 +63,39 @@ export function useCloudWeightLog() {
 
   useEffect(() => {
     if (!user) return
-    supabase
-      .from('weight_log')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('date', { ascending: false })
-      .limit(90)
-      .then(({ data }) => {
-        const rows = (data ?? []) as WeightRow[]
-        if (rows.length > 0) {
-          setLog(rows.map((r) => ({ date: r.date, weightLbs: r.weight_lbs, notes: r.notes ?? undefined })))
+    databases
+      .listDocuments(DATABASE_ID, COLLECTIONS.WEIGHT_LOG, [
+        Query.equal('user_id', user.$id),
+        Query.orderDesc('date'),
+        Query.limit(90),
+      ])
+      .then(({ documents }) => {
+        if (documents.length > 0) {
+          setLog(documents.map((d) => ({
+            date: d.date as string,
+            weightLbs: d.weight_lbs as number,
+            notes: (d.notes as string) || undefined,
+          })))
         }
       })
+      .catch(() => {})
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const addEntry = useCallback(
     async (entry: WeightEntry) => {
       setLog((prev) => [entry, ...prev].slice(0, 90))
       if (!user) return
-      await supabase.from('weight_log').insert({
-        user_id: user.id,
-        date: entry.date,
-        weight_lbs: entry.weightLbs,
-        notes: entry.notes ?? null,
-      })
+      await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.WEIGHT_LOG,
+        ID.unique(),
+        { user_id: user.$id, date: entry.date, weight_lbs: entry.weightLbs, notes: entry.notes ?? null },
+        [
+          Permission.read(Role.user(user.$id)),
+          Permission.update(Role.user(user.$id)),
+          Permission.delete(Role.user(user.$id)),
+        ],
+      )
     },
     [user, setLog],
   )
@@ -156,12 +104,16 @@ export function useCloudWeightLog() {
     async (index: number, entry: WeightEntry) => {
       setLog((prev) => prev.filter((_, i) => i !== index))
       if (!user) return
-      await supabase
-        .from('weight_log')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('date', entry.date)
-        .eq('weight_lbs', entry.weightLbs)
+      // Find the Appwrite document to delete
+      const { documents } = await databases.listDocuments(DATABASE_ID, COLLECTIONS.WEIGHT_LOG, [
+        Query.equal('user_id', user.$id),
+        Query.equal('date', entry.date),
+        Query.equal('weight_lbs', entry.weightLbs),
+        Query.limit(1),
+      ])
+      if (documents[0]) {
+        await databases.deleteDocument(DATABASE_ID, COLLECTIONS.WEIGHT_LOG, documents[0].$id)
+      }
     },
     [user, setLog],
   )
@@ -177,38 +129,48 @@ export function useCloudStrengthLog() {
 
   useEffect(() => {
     if (!user) return
-    supabase
-      .from('strength_log')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('date', { ascending: false })
-      .limit(200)
-      .then(({ data }) => {
-        const rows = (data ?? []) as StrengthRow[]
-        if (rows.length > 0) {
-          setLog(rows.map((r) => ({
-            date: r.date,
-            exercise: r.exercise,
-            weightLbs: r.weight_lbs,
-            reps: r.reps,
-            sets: r.sets,
+    databases
+      .listDocuments(DATABASE_ID, COLLECTIONS.STRENGTH_LOG, [
+        Query.equal('user_id', user.$id),
+        Query.orderDesc('date'),
+        Query.limit(200),
+      ])
+      .then(({ documents }) => {
+        if (documents.length > 0) {
+          setLog(documents.map((d) => ({
+            date: d.date as string,
+            exercise: d.exercise as string,
+            weightLbs: d.weight_lbs as number,
+            reps: d.reps as number,
+            sets: d.sets as number,
           })))
         }
       })
+      .catch(() => {})
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const addEntry = useCallback(
     async (entry: StrengthEntry) => {
       setLog((prev) => [entry, ...prev].slice(0, 200))
       if (!user) return
-      await supabase.from('strength_log').insert({
-        user_id: user.id,
-        date: entry.date,
-        exercise: entry.exercise,
-        weight_lbs: entry.weightLbs,
-        reps: entry.reps,
-        sets: entry.sets,
-      })
+      await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.STRENGTH_LOG,
+        ID.unique(),
+        {
+          user_id: user.$id,
+          date: entry.date,
+          exercise: entry.exercise,
+          weight_lbs: entry.weightLbs,
+          reps: entry.reps,
+          sets: entry.sets,
+        },
+        [
+          Permission.read(Role.user(user.$id)),
+          Permission.update(Role.user(user.$id)),
+          Permission.delete(Role.user(user.$id)),
+        ],
+      )
     },
     [user, setLog],
   )
@@ -217,12 +179,15 @@ export function useCloudStrengthLog() {
     async (index: number, entry: StrengthEntry) => {
       setLog((prev) => prev.filter((_, i) => i !== index))
       if (!user) return
-      await supabase
-        .from('strength_log')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('date', entry.date)
-        .eq('exercise', entry.exercise)
+      const { documents } = await databases.listDocuments(DATABASE_ID, COLLECTIONS.STRENGTH_LOG, [
+        Query.equal('user_id', user.$id),
+        Query.equal('date', entry.date),
+        Query.equal('exercise', entry.exercise),
+        Query.limit(1),
+      ])
+      if (documents[0]) {
+        await databases.deleteDocument(DATABASE_ID, COLLECTIONS.STRENGTH_LOG, documents[0].$id)
+      }
     },
     [user, setLog],
   )
@@ -238,39 +203,46 @@ export function useCloudGoals(defaultGoals: Goal[]) {
 
   useEffect(() => {
     if (!user) return
-    supabase
-      .from('goals')
-      .select('*')
-      .eq('user_id', user.id)
-      .then(({ data }) => {
-        const rows = (data ?? []) as GoalRow[]
-        if (rows.length > 0) {
-          setGoals(rows.map((r) => ({
-            id: r.id,
-            title: r.title,
-            targetValue: r.target_value,
-            currentValue: r.current_value,
-            unit: r.unit,
-            category: r.category as Goal['category'],
+    databases
+      .listDocuments(DATABASE_ID, COLLECTIONS.GOALS, [
+        Query.equal('user_id', user.$id),
+      ])
+      .then(({ documents }) => {
+        if (documents.length > 0) {
+          setGoals(documents.map((d) => ({
+            id: d.goal_id as string,
+            title: d.title as string,
+            targetValue: d.target_value as number,
+            currentValue: d.current_value as number,
+            unit: d.unit as string,
+            category: d.category as Goal['category'],
           })))
         }
       })
+      .catch(() => {})
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveGoals = useCallback(
     async (updated: Goal[]) => {
       setGoals(updated)
       if (!user) return
-      await supabase.from('goals').upsert(
-        updated.map((g) => ({
-          id: g.id,
-          user_id: user.id,
-          title: g.title,
-          target_value: g.targetValue,
-          current_value: g.currentValue,
-          unit: g.unit,
-          category: g.category,
-        })),
+      await Promise.all(
+        updated.map((g) =>
+          upsertDocument(
+            COLLECTIONS.GOALS,
+            `${user.$id}_${g.id}`,
+            {
+              user_id: user.$id,
+              goal_id: g.id,
+              title: g.title,
+              target_value: g.targetValue,
+              current_value: g.currentValue,
+              unit: g.unit,
+              category: g.category,
+            },
+            user.$id,
+          ),
+        ),
       )
     },
     [user, setGoals],
@@ -287,43 +259,38 @@ export function useCloudHabits() {
 
   useEffect(() => {
     if (!user) return
-    supabase
-      .from('habit_log')
-      .select('*')
-      .eq('user_id', user.id)
-      .then(({ data }) => {
-        const rows = (data ?? []) as HabitRow[]
-        if (rows.length > 0) {
+    databases
+      .listDocuments(DATABASE_ID, COLLECTIONS.HABIT_LOG, [
+        Query.equal('user_id', user.$id),
+        Query.limit(365),
+      ])
+      .then(({ documents }) => {
+        if (documents.length > 0) {
           const map: Record<string, string[]> = {}
-          rows.forEach((r) => { map[r.date] = r.habits })
+          documents.forEach((d) => { map[d.date as string] = d.habits as string[] })
           setHabits(map)
         }
       })
+      .catch(() => {})
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleHabit = useCallback(
-    async (today: string, habit: string) => {
-      let updatedHabits: string[] = []
-      setHabits((prev) => {
-        const todayHabits = prev[today] ?? []
-        updatedHabits = todayHabits.includes(habit)
-          ? todayHabits.filter((h) => h !== habit)
-          : [...todayHabits, habit]
-        return { ...prev, [today]: updatedHabits }
-      })
-      if (!user) return
-      // We need the current list after state update — read it fresh
-      const currentHabits = habits[today] ?? []
-      const finalHabits = currentHabits.includes(habit)
+    async (today: string, habit: string, currentHabits: string[]) => {
+      const updated = currentHabits.includes(habit)
         ? currentHabits.filter((h) => h !== habit)
         : [...currentHabits, habit]
-      await supabase.from('habit_log').upsert({
-        user_id: user.id,
-        date: today,
-        habits: finalHabits,
-      })
+
+      setHabits((prev) => ({ ...prev, [today]: updated }))
+
+      if (!user) return
+      await upsertDocument(
+        COLLECTIONS.HABIT_LOG,
+        `${user.$id}_${today}`,
+        { user_id: user.$id, date: today, habits: updated },
+        user.$id,
+      )
     },
-    [user, habits, setHabits],
+    [user, setHabits],
   )
 
   return { habits, toggleHabit }
@@ -338,18 +305,13 @@ export function useCloudPreferences() {
 
   useEffect(() => {
     if (!user) return
-    supabase
-      .from('preferences')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        const row = data as PrefsRow | null
-        if (row) {
-          setWorkoutDays(row.workout_days)
-          setGoalMode(row.goal_mode)
-        }
+    databases
+      .getDocument(DATABASE_ID, COLLECTIONS.PREFERENCES, user.$id)
+      .then((doc) => {
+        setWorkoutDays(doc.workout_days as string[])
+        setGoalMode(doc.goal_mode as string)
       })
+      .catch(() => {})
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const savePreferences = useCallback(
@@ -357,12 +319,12 @@ export function useCloudPreferences() {
       setWorkoutDays(days)
       setGoalMode(mode)
       if (!user) return
-      await supabase.from('preferences').upsert({
-        user_id: user.id,
-        workout_days: days,
-        goal_mode: mode,
-        updated_at: new Date().toISOString(),
-      })
+      await upsertDocument(
+        COLLECTIONS.PREFERENCES,
+        user.$id,
+        { workout_days: days, goal_mode: mode },
+        user.$id,
+      )
     },
     [user, setWorkoutDays, setGoalMode],
   )
