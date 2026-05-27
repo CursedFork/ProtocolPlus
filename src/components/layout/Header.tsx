@@ -1,5 +1,6 @@
-import { Menu, Moon, Sun, Zap } from 'lucide-react'
+import { Menu, Moon, Sun, Zap, LogOut } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   '/': { title: 'Dashboard', subtitle: "Today's overview" },
@@ -20,6 +21,7 @@ interface HeaderProps {
 
 export function Header({ onMenuClick, theme, onToggleTheme }: HeaderProps) {
   const location = useLocation()
+  const { user, signOut } = useAuth()
   const basePath = '/' + location.pathname.split('/')[1]
   const meta = pageTitles[basePath] ?? pageTitles['/']
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -61,13 +63,23 @@ export function Header({ onMenuClick, theme, onToggleTheme }: HeaderProps) {
             {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
 
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground hidden sm:block">{today}</p>
-            <div className="flex items-center gap-1.5 justify-end mt-0.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              <span className="text-xs text-primary font-medium">Active</span>
-            </div>
+          <div className="text-right hidden sm:block">
+            <p className="text-xs text-muted-foreground">{today}</p>
+            {user && (
+              <p className="text-[10px] text-muted-foreground/60 truncate max-w-36">{user.email}</p>
+            )}
           </div>
+
+          {/* Sign out */}
+          {user && (
+            <button
+              onClick={signOut}
+              title="Sign out"
+              className="p-2 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
     </header>
