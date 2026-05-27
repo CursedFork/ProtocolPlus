@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
+import { client } from '@/lib/appwrite'
 import { Layout } from '@/components/layout/Layout'
 import Dashboard from '@/pages/Dashboard'
 import DietPlan from '@/pages/DietPlan'
@@ -49,6 +51,15 @@ function AppRoutes() {
 }
 
 export default function App() {
+  // Ping Appwrite on startup to verify backend connectivity
+  useEffect(() => {
+    client.ping().then(() => {
+      console.log('[Appwrite] Backend reachable ✓')
+    }).catch((err) => {
+      console.warn('[Appwrite] Ping failed:', err)
+    })
+  }, [])
+
   return (
     <BrowserRouter>
       <AuthProvider>

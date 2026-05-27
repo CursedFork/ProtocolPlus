@@ -1,7 +1,13 @@
 import { Client, Account, Databases, Permission, Role, ID, Query } from 'appwrite'
 
-const endpoint = import.meta.env.VITE_APPWRITE_ENDPOINT as string
-const projectId = import.meta.env.VITE_APPWRITE_PROJECT_ID as string
+export const client = new Client()
+  .setEndpoint('https://nyc.cloud.appwrite.io/v1')
+  .setProject('6a175007003a8e03aef8')
+
+export const account   = new Account(client)
+export const databases = new Databases(client)
+
+export { ID, Query, Permission, Role }
 
 export const DATABASE_ID = import.meta.env.VITE_APPWRITE_DATABASE_ID as string
 
@@ -14,14 +20,6 @@ export const COLLECTIONS = {
   HABIT_LOG:    'habit_log',
   PREFERENCES:  'preferences',
 } as const
-
-const client = new Client()
-  .setEndpoint(endpoint ?? 'https://cloud.appwrite.io/v1')
-  .setProject(projectId ?? '')
-
-export const account   = new Account(client)
-export const databases = new Databases(client)
-export { ID, Query, Permission, Role }
 
 /**
  * Upsert helper — tries update first, falls back to create.
