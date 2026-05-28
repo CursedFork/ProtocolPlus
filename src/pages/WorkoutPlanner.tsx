@@ -4,7 +4,7 @@ import { Dumbbell, Clock, ChevronDown, ChevronUp, Info, Calendar, Zap, FlaskConi
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/shared/Card'
 import { Badge } from '@/components/shared/Badge'
 import { Accordion, AccordionItem } from '@/components/shared/Accordion'
-import { useLocalStorage } from '@/hooks/useLocalStorage'
+import { useCloudPreferences } from '@/hooks/useCloudSync'
 import { workoutPlans } from '@/data/workouts'
 import { fatLossPlans } from '@/data/workoutsFatLoss'
 import { buildSchedule, validateDaySelection } from '@/utils/workoutScaling'
@@ -28,8 +28,9 @@ const muscleGroupColors: Record<string, string> = {
 }
 
 export default function WorkoutPlanner() {
-  const [selectedDays, setSelectedDays] = useLocalStorage<DayOfWeek[]>('workout_days', ['Monday', 'Wednesday', 'Friday'])
-  const [goalMode, setGoalMode] = useLocalStorage<'strength' | 'fat-loss'>('workout_goal', 'strength')
+  const { workoutDays, goalMode: rawGoalMode, saveWorkoutDays, saveGoalMode } = useCloudPreferences()
+  const selectedDays = workoutDays as DayOfWeek[]
+  const goalMode = (rawGoalMode === 'fat-loss' ? 'fat-loss' : 'strength') as 'strength' | 'fat-loss'
   const [expandedDay, setExpandedDay] = useState<number | null>(null)
 
   const validation = validateDaySelection(selectedDays)
@@ -39,14 +40,15 @@ export default function WorkoutPlanner() {
   const schedule = buildSchedule(selectedDays, plan)
 
   function toggleDay(day: DayOfWeek) {
-    setSelectedDays((prev) => {
-      if (prev.includes(day)) {
-        if (prev.length <= 2) return prev
-        return prev.filter((d) => d !== day)
-      }
-      if (prev.length >= 6) return prev
-      return [...prev, day]
-    })
+    let next: DayOfWeek[]
+    if (selectedDays.includes(day)) {
+      if (selectedDays.length <= 2) return
+      next = selectedDays.filter((d) => d !== day)
+    } else {
+      if (selectedDays.length >= 6) return
+      next = [...selectedDays, day]
+    }
+    saveWorkoutDays(next)
     setExpandedDay(null)
   }
 
@@ -79,7 +81,7 @@ export default function WorkoutPlanner() {
         </CardHeader>
         <div className="grid grid-cols-2 gap-2">
           <button
-            onClick={() => { setGoalMode('strength'); setExpandedDay(null) }}
+            onClick={() => { saveGoalMode('strength'); setExpandedDay(null) }}
             className={cn(
               'flex items-center justify-center gap-2 rounded-lg border py-3 px-3 text-sm font-medium transition-all duration-150',
               goalMode === 'strength'
@@ -91,7 +93,7 @@ export default function WorkoutPlanner() {
             Strength & Size
           </button>
           <button
-            onClick={() => { setGoalMode('fat-loss'); setExpandedDay(null) }}
+            onClick={() => { saveGoalMode('fat-loss'); setExpandedDay(null) }}
             className={cn(
               'flex items-center justify-center gap-2 rounded-lg border py-3 px-3 text-sm font-medium transition-all duration-150',
               goalMode === 'fat-loss'

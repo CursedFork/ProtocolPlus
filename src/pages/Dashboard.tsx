@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from '@/components/share
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { Badge } from '@/components/shared/Badge'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
+import { useCloudStats } from '@/hooks/useCloudSync'
 import { getTodayString } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import {
@@ -197,7 +198,7 @@ const stagger = {
 
 export default function Dashboard() {
   const today = getTodayString()
-  const [userStats, setUserStats] = useLocalStorage<UserStats | null>('user_stats', null)
+  const { stats: userStats, saveStats: setUserStats } = useCloudStats()
   const [waterGlasses, setWaterGlasses] = useLocalStorage(`water_${today}`, 0)
   const [habits, setHabits] = useLocalStorage<Record<string, boolean>>(`habits_${today}`, {})
   const [suppDone, setSuppDone] = useLocalStorage<Record<string, boolean>>(`supps_${today}`, {})
@@ -743,7 +744,7 @@ function StatsCard({
         </button>
 
         <p className="text-[10px] text-muted-foreground text-center">
-          Stored locally in your browser only. Not sent anywhere.
+          Synced to your account and available on any device.
         </p>
       </div>
     </Card>

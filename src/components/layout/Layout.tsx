@@ -3,10 +3,15 @@ import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { useTheme } from '@/hooks/useTheme'
+import { useCloudStats } from '@/hooks/useCloudSync'
+import { useAuth } from '@/contexts/AuthContext'
+import { OnboardingModal } from '@/components/shared/OnboardingModal'
 
 export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
+  const { user } = useAuth()
+  const { stats } = useCloudStats()
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -19,6 +24,9 @@ export function Layout() {
           </div>
         </main>
       </div>
+
+      {/* First-run onboarding — shown when logged in but no profile yet */}
+      {user && stats === null && <OnboardingModal />}
     </div>
   )
 }

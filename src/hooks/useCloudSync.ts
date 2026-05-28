@@ -303,6 +303,12 @@ export function useCloudPreferences() {
   const [workoutDays, setWorkoutDays] = useLocalStorage<string[]>('workout_days', ['Monday', 'Wednesday', 'Friday'])
   const [goalMode, setGoalMode] = useLocalStorage<string>('workout_goal', 'strength')
 
+  // Refs so callbacks always see current values without stale closures
+  const daysRef = { current: workoutDays }
+  const modeRef = { current: goalMode }
+  daysRef.current = workoutDays
+  modeRef.current = goalMode
+
   useEffect(() => {
     if (!user) return
     databases
@@ -314,20 +320,23 @@ export function useCloudPreferences() {
       .catch(() => {})
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const savePreferences = useCallback(
-    async (days: string[], mode: string) => {
+  const saveWorkoutDays = useCallback(
+    async (days: string[]) => {
       setWorkoutDays(days)
-      setGoalMode(mode)
       if (!user) return
-      await upsertDocument(
-        COLLECTIONS.PREFERENCES,
-        user.$id,
-        { workout_days: days, goal_mode: mode },
-        user.$id,
-      )
+      await upsertDocument(COLLECTIONS.PREFERENCES, user.$id, { workout_days: days, goal_mode: modeRef.current }, user.$id)
     },
-    [user, setWorkoutDays, setGoalMode],
+    [user, setWorkoutDays], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
-  return { workoutDays, goalMode, savePreferences }
+  const saveGoalMode = useCallback(
+    async (mode: string) => {
+      setGoalMode(mode)
+      if (!user) return
+      await upsertDocument(COLLECTIONS.PREFERENCES, user.$id, { workout_days: daysRef.current, goal_mode: mode }, user.$id)
+    },
+    [user, setGoalMode], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+
+  return { workoutDays, goalMode, saveWorkoutDays, saveGoalMode }
 }

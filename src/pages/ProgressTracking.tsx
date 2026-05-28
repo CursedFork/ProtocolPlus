@@ -1,11 +1,19 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { TrendingUp, TrendingDown, Minus, Scale, Dumbbell, Activity, Target, Camera, Plus, Trash2 } from 'lucide-react'
+import {
+  TrendingUp, TrendingDown, Minus, Scale, Dumbbell, Activity,
+  Target, Camera, Plus, Trash2, Pencil, X, Check,
+} from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/shared/Card'
 import { ProgressBar } from '@/components/shared/ProgressBar'
 import { Badge } from '@/components/shared/Badge'
-import { useLocalStorage } from '@/hooks/useLocalStorage'
-import type { WeightEntry, StrengthEntry, Goal } from '@/types/progress'
+import {
+  useCloudWeightLog,
+  useCloudStrengthLog,
+  useCloudGoals,
+  useCloudHabits,
+} from '@/hooks/useCloudSync'
+import type { Goal } from '@/types/progress'
 import { getTodayString } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
@@ -18,10 +26,10 @@ const defaultGoals: Goal[] = [
 const HABIT_KEYS = ['Training', 'Protein target', 'Water goal', 'Good sleep', 'Vegetables', 'No late caffeine']
 
 export default function ProgressTracking() {
-  const [weightLog, setWeightLog] = useLocalStorage<WeightEntry[]>('progress_weight', [])
-  const [strengthLog, setStrengthLog] = useLocalStorage<StrengthEntry[]>('progress_strength', [])
-  const [goals] = useLocalStorage<Goal[]>('goals', defaultGoals)
-  const [habits, setHabits] = useLocalStorage<Record<string, string[]>>('habit_streak', {})
+  const { log: weightLog, addEntry: addWeightEntry, removeEntry: removeWeightEntry } = useCloudWeightLog()
+  const { log: strengthLog, addEntry: addStrengthEntry, removeEntry: removeStrengthEntry } = useCloudStrengthLog()
+  const { goals, saveGoals } = useCloudGoals(defaultGoals)
+  const { habits, toggleHabit } = useCloudHabits()
 
   const [weightInput, setWeightInput] = useState('')
   const [weightNote, setWeightNote] = useState('')
@@ -31,41 +39,45 @@ export default function ProgressTracking() {
   const [strengthReps, setStrengthReps] = useState('')
   const [strengthSets] = useState('3')
 
+  // Goal editing state: maps goal id → draft values
+  const [editingGoal, setEditingGoal] = useState<string | null>(null)
+  const [goalDraft, setGoalDraft] = useState<{ currentValue: number; targetValue: number }>({ currentValue: 0, targetValue: 0 })
+
   const today = getTodayString()
 
   function addWeight() {
     const w = parseFloat(weightInput)
     if (isNaN(w) || w <= 0) return
-    setWeightLog((prev) => [{ date: today, weightLbs: w, notes: weightNote }, ...prev].slice(0, 90))
+    addWeightEntry({ date: today, weightLbs: w, notes: weightNote || undefined })
     setWeightInput('')
     setWeightNote('')
   }
 
   function addStrength() {
     if (!strengthExercise || !strengthWeight || !strengthReps) return
-    setStrengthLog((prev) => [
-      {
-        date: today,
-        exercise: strengthExercise,
-        weightLbs: parseFloat(strengthWeight),
-        reps: parseInt(strengthReps),
-        sets: parseInt(strengthSets),
-      },
-      ...prev,
-    ].slice(0, 200))
+    addStrengthEntry({
+      date: today,
+      exercise: strengthExercise,
+      weightLbs: parseFloat(strengthWeight),
+      reps: parseInt(strengthReps),
+      sets: parseInt(strengthSets),
+    })
     setStrengthExercise('')
     setStrengthWeight('')
     setStrengthReps('')
   }
 
-  function toggleHabit(habit: string) {
-    setHabits((prev) => {
-      const todayHabits = prev[today] ?? []
-      const updated = todayHabits.includes(habit)
-        ? todayHabits.filter((h) => h !== habit)
-        : [...todayHabits, habit]
-      return { ...prev, [today]: updated }
-    })
+  function startEditGoal(goal: Goal) {
+    setEditingGoal(goal.id)
+    setGoalDraft({ currentValue: goal.currentValue, targetValue: goal.targetValue })
+  }
+
+  function saveGoal(goalId: string) {
+    const updated = goals.map((g) =>
+      g.id === goalId ? { ...g, currentValue: goalDraft.currentValue, targetValue: goalDraft.targetValue } : g,
+    )
+    saveGoals(updated)
+    setEditingGoal(null)
   }
 
   const recentWeight = weightLog[0]
@@ -84,12 +96,14 @@ export default function ProgressTracking() {
       {/* Goals overview */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {goals.map((goal) => {
-          const pct = Math.min(100, (goal.currentValue / goal.targetValue) * 100)
           const isWeight = goal.category === 'weight'
-          // For weight loss, progress is inverted
-          const adjustedPct = isWeight && goal.targetValue < goal.currentValue
-            ? Math.min(100, ((goal.currentValue - goal.targetValue) / (goal.currentValue - goal.targetValue + 1)) * 100)
-            : pct
+          const isLosing = isWeight && goal.targetValue < goal.currentValue
+          const pct = isLosing
+            ? Math.min(100, ((goal.currentValue - goal.targetValue) /
+                Math.max(1, (goal.currentValue + 10) - goal.targetValue)) * 100)
+            : Math.min(100, (goal.currentValue / goal.targetValue) * 100)
+
+          const isEditing = editingGoal === goal.id
 
           return (
             <Card key={goal.id} className="border-primary/10">
@@ -97,14 +111,53 @@ export default function ProgressTracking() {
                 {goal.category === 'weight' ? <Scale className="h-4 w-4 text-orange-400" />
                   : goal.category === 'strength' ? <Dumbbell className="h-4 w-4 text-red-400" />
                   : <Activity className="h-4 w-4 text-blue-400" />}
-                <span className="text-xs text-muted-foreground">{goal.title}</span>
+                <span className="text-xs text-muted-foreground flex-1">{goal.title}</span>
+                {isEditing ? (
+                  <div className="flex gap-1">
+                    <button onClick={() => saveGoal(goal.id)} className="p-1 text-green-400 hover:text-green-300 transition-colors">
+                      <Check className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={() => setEditingGoal(null)} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => startEditGoal(goal)} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
-              <div className="flex items-end justify-between mb-2">
-                <span className="text-2xl font-bold text-foreground">{goal.currentValue}</span>
-                <span className="text-sm text-muted-foreground">/ {goal.targetValue} {goal.unit}</span>
-              </div>
+
+              {isEditing ? (
+                <div className="space-y-2 mb-3">
+                  <div>
+                    <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Current</label>
+                    <input
+                      type="number"
+                      value={goalDraft.currentValue}
+                      onChange={(e) => setGoalDraft((d) => ({ ...d, currentValue: parseFloat(e.target.value) || 0 }))}
+                      className="w-full bg-muted border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Target</label>
+                    <input
+                      type="number"
+                      value={goalDraft.targetValue}
+                      onChange={(e) => setGoalDraft((d) => ({ ...d, targetValue: parseFloat(e.target.value) || 0 }))}
+                      className="w-full bg-muted border border-border rounded-lg px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary mt-0.5"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-end justify-between mb-2">
+                  <span className="text-2xl font-bold text-foreground">{goal.currentValue}</span>
+                  <span className="text-sm text-muted-foreground">/ {goal.targetValue} {goal.unit}</span>
+                </div>
+              )}
+
               <ProgressBar
-                value={adjustedPct}
+                value={pct}
                 max={100}
                 color={goal.category === 'weight' ? 'orange' : goal.category === 'strength' ? 'red' : 'blue'}
                 size="sm"
@@ -141,6 +194,7 @@ export default function ProgressTracking() {
               type="number"
               value={weightInput}
               onChange={(e) => setWeightInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addWeight()}
               placeholder="e.g. 182.5"
               className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />
@@ -169,7 +223,7 @@ export default function ProgressTracking() {
                   {entry.notes && <span className="text-xs text-muted-foreground italic truncate max-w-24">{entry.notes}</span>}
                   <span className="text-sm font-medium text-foreground">{entry.weightLbs} lbs</span>
                   <button
-                    onClick={() => setWeightLog((prev) => prev.filter((_, j) => j !== i))}
+                    onClick={() => removeWeightEntry(i, entry)}
                     className="text-muted-foreground hover:text-red-400 transition-colors"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -230,7 +284,7 @@ export default function ProgressTracking() {
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-foreground font-mono">{entry.sets}×{entry.reps} @ {entry.weightLbs}lbs</span>
                   <button
-                    onClick={() => setStrengthLog((prev) => prev.filter((_, j) => j !== i))}
+                    onClick={() => removeStrengthEntry(i, entry)}
                     className="text-muted-foreground hover:text-red-400 transition-colors"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -259,7 +313,7 @@ export default function ProgressTracking() {
             return (
               <button
                 key={habit}
-                onClick={() => toggleHabit(habit)}
+                onClick={() => toggleHabit(today, habit, habits[today] ?? [])}
                 className={cn(
                   'flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-sm text-left transition-all duration-150',
                   done
