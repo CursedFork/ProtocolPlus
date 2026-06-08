@@ -1,6 +1,5 @@
-import { Menu, Moon, Sun, Zap, LogOut } from 'lucide-react'
+import { Menu, Moon, Sun, Zap } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   '/': { title: 'Dashboard', subtitle: "Today's overview" },
@@ -21,7 +20,6 @@ interface HeaderProps {
 
 export function Header({ onMenuClick, theme, onToggleTheme }: HeaderProps) {
   const location = useLocation()
-  const { user, signOut } = useAuth()
   const basePath = '/' + location.pathname.split('/')[1]
   const meta = pageTitles[basePath] ?? pageTitles['/']
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -65,21 +63,7 @@ export function Header({ onMenuClick, theme, onToggleTheme }: HeaderProps) {
 
           <div className="text-right hidden sm:block">
             <p className="text-xs text-muted-foreground">{today}</p>
-            {user && (
-              <p className="text-[10px] text-muted-foreground/60 truncate max-w-36">{user.email}</p>
-            )}
           </div>
-
-          {/* Sign out */}
-          {user && (
-            <button
-              onClick={signOut}
-              title="Sign out"
-              className="p-2 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          )}
         </div>
       </div>
     </header>
